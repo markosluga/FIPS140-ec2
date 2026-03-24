@@ -1,0 +1,175 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  FIPS140-nginx-demo infrastructure — IAM role, instance profile, and EC2
+  launch template for spinning up spot instances running the nginx demo stack.
+
+# ---------------------------------------------------------------------------
+# Parameters — override at deploy time to target a different environment
+# ---------------------------------------------------------------------------
+Parameters:
+
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0a388b6c5cdd7de56
+    Description: AMI baked from the Latest-Ubuntu instance (FIPS140-nginx-demo)
+
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: <your-key-pair-name>
+    Description: EC2 key pair for SSH access
+
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Default: subnet-0e6738b4475b7922d
+    Description: Subnet to launch instances into (must be a public subnet)
+
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Default: sg-059edb1dfdab3663f
+    Description: Security group to attach to instances (demos SG)
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # -------------------------------------------------------------------------
+  # IAM Role
+  # Trusted by the EC2 service. Grants the kms-bridge container the minimum
+  # KMS permissions it needs — boto3 picks up credentials automatically from
+  # the EC2 instance metadata service (IMDSv2), so no credentials need to be
+  # passed explicitly to the Docker container.
+  # -------------------------------------------------------------------------
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: FIPS140-nginx-demo
+      Description: Instance role for FIPS140-nginx-demo - KMS access for kms-bridge
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      MaxSessionDuration: 3600
+      Policies:
+        - PolicyName: KMSAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: "*"
+
+  # -------------------------------------------------------------------------
+  # Instance Profile
+  # Wraps the role so it can be attached to EC2 instances.
+  # -------------------------------------------------------------------------
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: FIPS140-nginx-demo
+      Roles:
+        - !Ref InstanceRole
+
+  # -------------------------------------------------------------------------
+  # Launch Template
+  # Spot instance, t3.micro, public IP via network interface.
+  # UserData installs a systemd service that runs `docker compose up` on boot.
+  # IMDSv2 (HttpTokens: required) is enforced.
+  # -------------------------------------------------------------------------
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: FIPS140-nginx-demo
+      LaunchTemplateData:
+        ImageId: !Ref AmiId
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyName
+
+        IamInstanceProfile:
+          Name: !Ref InstanceProfile
+
+        # Spot market — one-time request, terminate on interruption
+        InstanceMarketOptions:
+          MarketType: spot
+          SpotOptions:
+            SpotInstanceType: one-time
+            InstanceInterruptionBehavior: terminate
+
+        # Network interface required to assign a public IP on a specific subnet
+        NetworkInterfaces:
+          - DeviceIndex: 0
+            SubnetId: !Ref SubnetId
+            AssociatePublicIpAddress: true
+            Groups:
+              - !Ref SecurityGroupId
+
+        # IMDSv2 enforced — hop limit 2 allows containers to reach the metadata service
+        MetadataOptions:
+          HttpTokens: required
+          HttpEndpoint: enabled
+          HttpPutResponseHopLimit: 2
+
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: FIPS140-nginx-demo
+
+        # Installs and enables a systemd service (fips140-nginx-demo) that
+        # runs `docker compose up` from /home/ubuntu/FIPS140 on every boot.
+        # See userdata.sh in the repo root for the un-encoded version.
+        UserData:
+          Fn::Base64: |
+            #!/bin/bash
+            cat > /etc/systemd/system/fips140-nginx-demo.service << 'EOF'
+            [Unit]
+            Description=FIPS140 nginx demo
+            After=docker.service
+            Requires=docker.service
+
+            [Service]
+            WorkingDirectory=/home/ubuntu/FIPS140
+            ExecStart=/usr/bin/docker compose up
+            ExecStop=/usr/bin/docker compose down
+            Restart=always
+            RestartSec=10
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            systemctl daemon-reload
+            systemctl enable fips140-nginx-demo
+            systemctl start fips140-nginx-demo
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+
+  InstanceRoleArn:
+    Description: ARN of the IAM role
+    Value: !GetAtt InstanceRole.Arn
+
+  InstanceProfileArn:
+    Description: ARN of the instance profile
+    Value: !GetAtt InstanceProfile.Arn
+
+  LaunchTemplateId:
+    Description: ID of the launch template
+    Value: !Ref LaunchTemplate
+
+  LaunchTemplateLatestVersion:
+    Description: Latest version number of the launch template
+    Value: !GetAtt LaunchTemplate.LatestVersionNumber
