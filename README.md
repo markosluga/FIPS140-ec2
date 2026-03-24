@@ -1,7 +1,7 @@
 # FIPS-140 Field Encryption Demo
 
-> **Branch: `deploy-on-ec2`**
-> This branch is configured for EC2 deployment only. It does not support running the stack locally — use the `main` branch for local development.
+> **EC2 deployment**
+> This repo is for deploying the demo on EC2. It does not support running the stack locally — for local development see [markosluga/FIPS140](https://github.com/markosluga/FIPS140).
 >
 > The stack is deployed automatically on instance boot via a systemd service. Use the spin-up scripts below to launch a new instance.
 
@@ -40,7 +40,7 @@ Once the instance is running, open `http://<public-ip>` in your browser.
 
 ---
 
-## Prerequisites (local / main branch)
+## Prerequisites
 
 - Docker + Docker Compose
 - AWS credentials with KMS access
