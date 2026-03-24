@@ -18,6 +18,7 @@ if ! command -v docker &> /dev/null; then
   systemctl enable docker
   systemctl start docker
   usermod -aG docker ubuntu
+  newgrp docker
 fi
 
 # Pull the repo
