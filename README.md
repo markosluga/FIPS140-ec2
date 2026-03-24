@@ -1,5 +1,10 @@
 # FIPS-140 Field Encryption Demo
 
+> **Branch: `deploy-on-ec2`**
+> This branch is configured for EC2 deployment only. It does not support running the stack locally — use the `main` branch for local development.
+>
+> The stack is deployed automatically on instance boot via a systemd service. Use the spin-up scripts below to launch a new instance.
+
 ## TL:DR
 
 This is a 3 step process:
@@ -15,7 +20,27 @@ We're demonstrating a way to implement end-to-end encryption with practically an
 
 While we follow best practices all the way, the logger is used to demo what is happening and **logs in plain-text** - because it's a demo and we want to show what's happening in the background - if you EVER want to reuse any of this code know that this code as-is, is NOT in any sense meant for actual use or even production.
 
-## Prerequisites
+## Spinning up an EC2 instance
+
+The spin-up scripts launch a spot instance from the `FIPS140-nginx-demo` launch template. They automatically resolve the latest Ubuntu 24.04 LTS AMI at run time. On first boot, the instance installs Docker, clones this branch, and starts the stack via systemd.
+
+**PowerShell (Windows):**
+```powershell
+.\spin-up.ps1
+```
+
+**Bash (Linux/macOS):**
+```bash
+bash spin-up.sh
+```
+
+> **Note:** The scripts use `--profile demos`. If you are using default AWS credentials or a different profile, remove or change the `--profile` flag in the script before running.
+
+Once the instance is running, open `http://<public-ip>` in your browser.
+
+---
+
+## Prerequisites (local / main branch)
 
 - Docker + Docker Compose
 - AWS credentials with KMS access
