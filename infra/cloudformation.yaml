@@ -10,8 +10,11 @@ Parameters:
 
   AmiId:
     Type: AWS::EC2::Image::Id
-    Default: ami-0a388b6c5cdd7de56
-    Description: AMI baked from the Latest-Ubuntu instance (FIPS140-nginx-demo)
+    Default: ami-XXXXXXXXXXXXXXXXX
+    Description: >
+      Latest Ubuntu 24.04 LTS AMI (Canonical owner 099720109477). The spin-up
+      scripts resolve this dynamically at launch time — update this default when
+      recreating the stack in a new region or after a Ubuntu release.
 
   InstanceType:
     Type: String
@@ -126,12 +129,34 @@ Resources:
               - Key: Name
                 Value: FIPS140-nginx-demo
 
-        # Installs and enables a systemd service (fips140-nginx-demo) that
-        # runs `docker compose up` from /home/ubuntu/FIPS140 on every boot.
+        # On first boot: installs git + docker, clones the deploy-on-ec2 branch
+        # into /home/ubuntu/FIPS140, then installs and starts a systemd service
+        # that runs `docker compose up` on every subsequent boot.
         # See userdata.sh in the repo root for the un-encoded version.
         UserData:
           Fn::Base64: |
             #!/bin/bash
+            set -e
+
+            apt-get update -y
+            apt-get install -y git ca-certificates curl gnupg
+
+            if ! command -v docker &> /dev/null; then
+              install -m 0755 -d /etc/apt/keyrings
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+              chmod a+r /etc/apt/keyrings/docker.gpg
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+                https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+                > /etc/apt/sources.list.d/docker.list
+              apt-get update -y
+              apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+              systemctl enable docker
+              systemctl start docker
+            fi
+
+            git clone -b deploy-on-ec2 https://github.com/markosluga/FIPS140.git /home/ubuntu/FIPS140
+            chown -R ubuntu:ubuntu /home/ubuntu/FIPS140
+
             cat > /etc/systemd/system/fips140-nginx-demo.service << 'EOF'
             [Unit]
             Description=FIPS140 nginx demo
