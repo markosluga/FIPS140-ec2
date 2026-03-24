@@ -152,6 +152,7 @@ Resources:
               apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
               systemctl enable docker
               systemctl start docker
+              usermod -aG docker ubuntu
             fi
 
             git clone -b deploy-on-ec2 https://github.com/markosluga/FIPS140.git /home/ubuntu/FIPS140

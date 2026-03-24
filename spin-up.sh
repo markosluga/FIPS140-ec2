@@ -15,7 +15,7 @@ echo "Using AMI: $AMI_ID"
 aws ec2 run-instances \
   --region us-east-2 \
   --profile demos \
-  --launch-template LaunchTemplateName=FIPS140-nginx-demo,Version=5 \
+  --launch-template LaunchTemplateName=FIPS140-nginx-demo,Version=6 \
   --image-id "$AMI_ID" \
   --network-interfaces "DeviceIndex=0,SubnetId=subnet-0e6738b4475b7922d,AssociatePublicIpAddress=true,Groups=sg-059edb1dfdab3663f" \
   --output table

@@ -17,6 +17,7 @@ if ! command -v docker &> /dev/null; then
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
   systemctl enable docker
   systemctl start docker
+  usermod -aG docker ubuntu
 fi
 
 # Pull the repo
