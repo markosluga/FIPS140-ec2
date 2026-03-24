@@ -25,6 +25,24 @@ fi
 git clone -b deploy-on-ec2 https://github.com/markosluga/FIPS140.git /home/ubuntu/FIPS140
 chown -R ubuntu:ubuntu /home/ubuntu/FIPS140
 
+# Script to fetch IMDSv2 credentials and write .env for docker-compose
+cat > /usr/local/bin/fetch-imds-credentials.sh << 'EOF'
+#!/bin/bash
+TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+ROLE=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+  http://169.254.169.254/latest/meta-data/iam/security-credentials/)
+CREDS=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+  http://169.254.169.254/latest/meta-data/iam/security-credentials/$ROLE)
+cat > /home/ubuntu/FIPS140/.env << ENVEOF
+AWS_ACCESS_KEY_ID=$(echo $CREDS | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKeyId'])")
+AWS_SECRET_ACCESS_KEY=$(echo $CREDS | python3 -c "import sys,json; print(json.load(sys.stdin)['SecretAccessKey'])")
+AWS_SESSION_TOKEN=$(echo $CREDS | python3 -c "import sys,json; print(json.load(sys.stdin)['Token'])")
+ENVEOF
+chmod 600 /home/ubuntu/FIPS140/.env
+EOF
+chmod +x /usr/local/bin/fetch-imds-credentials.sh
+
 # Install systemd service
 cat > /etc/systemd/system/fips140-nginx-demo.service << 'EOF'
 [Unit]
@@ -34,6 +52,7 @@ Requires=docker.service
 
 [Service]
 WorkingDirectory=/home/ubuntu/FIPS140
+ExecStartPre=/usr/local/bin/fetch-imds-credentials.sh
 ExecStart=/usr/bin/docker compose up
 ExecStop=/usr/bin/docker compose down
 Restart=always
