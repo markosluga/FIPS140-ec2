@@ -15,6 +15,11 @@ Parameters:
       Latest Ubuntu 24.04 LTS AMI (Canonical owner 099720109477). The spin-up
       scripts resolve this dynamically at launch time — update this default when
       recreating the stack in a new region or after a Ubuntu release.
+      Find the latest AMI:
+        aws ec2 describe-images --region us-east-1 --owners 099720109477
+          --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"
+                    "Name=state,Values=available"
+          --query "sort_by(Images, &CreationDate)[-1].ImageId" --output text
 
   InstanceType:
     Type: String
@@ -24,17 +29,34 @@ Parameters:
   KeyName:
     Type: AWS::EC2::KeyPair::KeyName
     Default: <your-key-pair-name>
-    Description: EC2 key pair for SSH access
+    Description: >
+      EC2 key pair for SSH access.
+      List available key pairs:
+        aws ec2 describe-key-pairs --region us-east-1 --query "KeyPairs[*].KeyName" --output table
 
   SubnetId:
     Type: AWS::EC2::Subnet::Id
     Default: subnet-XXXXXXXXXXXXXXXXX
-    Description: Subnet to launch instances into (must be a public subnet)
+    Description: >
+      Subnet to launch instances into (must be a public subnet).
+      List subnets:
+        aws ec2 describe-subnets --region us-east-1
+          --query "Subnets[*].{SubnetId:SubnetId,AZ:AvailabilityZone,CIDR:CidrBlock}" --output table
 
   SecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
     Default: sg-XXXXXXXXXXXXXXXXX
-    Description: Security group to attach to instances (demos SG)
+    Description: >
+      Security group to attach to instances.
+      List security groups:
+        aws ec2 describe-security-groups --region us-east-1
+          --query "SecurityGroups[*].{GroupId:GroupId,Name:GroupName,VPC:VpcId}" --output table
+      Create a new SG with HTTP (port 80) open:
+        SG_ID=$(aws ec2 create-security-group --region us-east-1
+          --group-name "my-demo-sg" --description "Allow HTTP" --vpc-id <vpc-id>
+          --query GroupId --output text)
+        aws ec2 authorize-security-group-ingress --region us-east-1
+          --group-id "$SG_ID" --protocol tcp --port 80 --cidr 0.0.0.0/0
 
 # ---------------------------------------------------------------------------
 # Resources
