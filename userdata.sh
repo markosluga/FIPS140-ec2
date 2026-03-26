@@ -22,7 +22,7 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # Pull the repo
-git clone --branch envelope-encryption https://github.com/markosluga/FIPS140-ec2.git /home/ubuntu/FIPS140-ec2
+git clone https://github.com/markosluga/FIPS140-ec2.git /home/ubuntu/FIPS140-ec2
 chown -R ubuntu:ubuntu /home/ubuntu/FIPS140-ec2
 
 # Script to fetch IMDSv2 credentials and write .env for docker-compose
