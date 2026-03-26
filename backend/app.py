@@ -3,7 +3,8 @@ from flask import Flask, request, jsonify
 import logging
 import sys
 import json
-import requests
+import os
+from kms_client import KMSClient, KMSClientError
 
 # Configure structured logging
 logging.basicConfig(
@@ -15,24 +16,17 @@ logging.basicConfig(
 app = Flask(__name__)
 logger = logging.getLogger(__name__)
 
-KMS_BRIDGE_URL = 'http://kms-bridge:5001'
-
-
-def decrypt_field(ciphertext):
-    """Call kms-bridge to decrypt a single ENC_V1_ ciphertext value."""
-    resp = requests.post(
-        f'{KMS_BRIDGE_URL}/decrypt',
-        json={'ciphertext': ciphertext},
-        timeout=10,
-    )
-    resp.raise_for_status()
-    return resp.json()
+# Initialise KMS client directly — no kms-bridge needed
+kms_client = KMSClient(
+    region=os.environ.get('KMS_REGION', 'us-east-1'),
+    key_id=os.environ.get('KMS_KEY_ID', 'alias/demo-field-encryption'),
+)
 
 
 @app.route('/api/submit', methods=['POST'])
 def submit():
     """
-    Accept JSON payloads, decrypt any ENC_V1_ fields via kms-bridge, and echo back.
+    Accept JSON payloads, decrypt any ENC_V1_ fields directly via KMS, and echo back.
 
     Requirements:
     - 3.1: Expose HTTP endpoint that accepts JSON payloads
@@ -60,19 +54,19 @@ def submit():
         for key, value in data.items():
             if isinstance(value, str) and value.startswith('ENC_V1_'):
                 logger.info(f"[ENCRYPTED FIELD] {key}: {value[:60]}...")
-                logger.info(f"[KMS] Calling kms-bridge to decrypt field '{key}'")
+                logger.info(f"[KMS] Calling KMS directly to decrypt field '{key}'")
                 try:
-                    result = decrypt_field(value)
+                    result = kms_client.decrypt(value)
                     decrypted[key] = result['plaintext']
                     decrypt_metrics[key] = {
                         'duration_ms': result.get('duration_ms'),
-                        'kms_key_id': result.get('key_id'),
+                        'kms_key_id':  result.get('key_id'),
                     }
                     logger.info(
                         f"[DECRYPTED] field='{key}' plaintext='{result['plaintext']}' "
                         f"kms_key={result.get('key_id')} duration={result.get('duration_ms')}ms"
                     )
-                except Exception as e:
+                except KMSClientError as e:
                     logger.error(f"[KMS ERROR] Failed to decrypt field '{key}': {e}")
                     decrypted[key] = value  # preserve ciphertext on error
             else:
@@ -108,6 +102,7 @@ def health():
 
 if __name__ == '__main__':
     logger.info("Starting Flask application on port 5000")
+    logger.info(f"KMS region: {kms_client.region}, key: {kms_client.key_id}")
     logger.info("Endpoints:")
     logger.info("  POST /api/submit - Accept, decrypt, and echo JSON payloads")
     logger.info("  GET  /health     - Health check")
