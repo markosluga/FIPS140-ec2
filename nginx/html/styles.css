@@ -12,17 +12,6 @@ h2 { color: #555; font-size: 18px; margin-bottom: 15px; border-bottom: 2px solid
 .phase-1-header { background: #cce5ff; color: #004085; }
 .phase-2-header { background: #d4edda; color: #155724; }
 
-/* Key flush block */
-.flush-block { background: #fff3cd; border: 2px solid #ffc107; border-radius: 10px; padding: 20px; margin-bottom: 20px; text-align: center; }
-.flush-label { font-size: 18px; font-weight: 700; color: #856404; margin-bottom: 8px; }
-.flush-desc { color: #666; margin-bottom: 16px; font-size: 14px; }
-.flush-btn { background: #ffc107; color: #212529; padding: 12px 30px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: 600; }
-.flush-btn:hover:not(:disabled) { background: #e0a800; }
-.flush-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.flush-status { margin-top: 12px; font-weight: 600; min-height: 24px; }
-.flush-status.success { color: #155724; }
-.flush-status.error { color: #721c24; }
-
 /* Form */
 .form-group { margin-bottom: 15px; }
 label { display: block; margin-bottom: 5px; color: #666; font-weight: 500; }
@@ -55,6 +44,10 @@ code { background: #f8f9fa; padding: 2px 6px; border-radius: 3px; font-size: 11p
 pre { background: #282c34; color: #abb2bf; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; line-height: 1.5; font-family: 'Courier New', monospace; white-space: pre-wrap; word-break: break-all; }
 
 .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; border-left: 4px solid #dc3545; margin-bottom: 16px; }
+
+/* Envelope */
+.envelope-grid { grid-template-columns: 1fr; gap: 15px; }
+.envelope-label { font-size: 12px; color: #888; margin: 0 0 8px; }
 
 @media (max-width: 768px) {
     body { padding: 10px; }

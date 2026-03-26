@@ -31,42 +31,29 @@ document.getElementById('encrypt-form').addEventListener('submit', async (e) => 
             if (storedCiphertext) {
                 document.getElementById('ciphertext-input').value = storedCiphertext;
                 document.getElementById('decrypt-btn').disabled = false;
-                document.getElementById('flush-btn').disabled = false;
             }
 
             document.getElementById('enc-kms-endpoint').textContent = metrics.kms_endpoint || '-';
             document.getElementById('enc-kms-key').textContent = metrics.kms_key_id || '-';
+            document.getElementById('enc-data-key').textContent = metrics.data_key_id || '-';
             animateValue('enc-time', metrics.encrypt_time_ms != null ? metrics.encrypt_time_ms + 'ms' : '-');
+
+            // Decode and display envelope contents
+            if (storedCiphertext && storedCiphertext.startsWith('ENC_V1_')) {
+                try {
+                    const envelope = JSON.parse(atob(storedCiphertext.slice(7)));
+                    document.getElementById('env-edk').textContent = envelope.edk || '-';
+                    document.getElementById('env-iv').textContent  = envelope.iv  || '-';
+                    document.getElementById('env-ct').textContent  = envelope.ct  || '-';
+                    document.getElementById('envelope-section').style.display = '';
+                } catch (_) {}
+            }
 
         } catch (err) {
             showError(err.message);
             document.getElementById('encrypted-data').textContent = 'Error: ' + err.message;
         }
     });
-});
-
-// Key cache flush
-document.getElementById('flush-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('flush-btn');
-    const status = document.getElementById('flush-status');
-    btn.disabled = true;
-    status.textContent = 'Flushing...';
-    status.className = 'flush-status';
-
-    try {
-        const response = await fetch('/api/flush-cache', { method: 'POST' });
-        if (response.ok) {
-            status.textContent = '✅ Key cache flushed — next operation will re-request keys from AWS KMS';
-            status.className = 'flush-status success';
-        } else {
-            // kms-bridge may not have a flush endpoint — treat as success for demo
-            status.textContent = '✅ Key cache flushed (simulated)';
-            status.className = 'flush-status success';
-        }
-    } catch (err) {
-        status.textContent = '✅ Key cache flushed (simulated)';
-        status.className = 'flush-status success';
-    }
 });
 
 // Phase 2: Decrypt
@@ -93,6 +80,7 @@ document.getElementById('decrypt-btn').addEventListener('click', async () => {
             document.getElementById('decrypted-data').textContent = JSON.stringify(decrypted, null, 2);
             document.getElementById('dec-kms-endpoint').textContent = metrics.kms_endpoint || '-';
             document.getElementById('dec-kms-key').textContent = metrics.kms_key_id || '-';
+            document.getElementById('dec-data-key').textContent = metrics.data_key_id || '-';
             animateValue('dec-time', metrics.decrypt_time_ms != null ? metrics.decrypt_time_ms + 'ms' : '-');
 
         } catch (err) {
