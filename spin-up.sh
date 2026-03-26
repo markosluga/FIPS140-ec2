@@ -82,11 +82,11 @@ aws ec2 wait instance-running \
   --profile <profile> \
   --instance-ids "$INSTANCE_ID"
 
-DNS=$(aws ec2 describe-instances \
+IP=$(aws ec2 describe-instances \
   --region us-east-1 \
   --profile <profile> \
   --instance-ids "$INSTANCE_ID" \
-  --query 'Reservations[0].Instances[0].PublicDnsName' \
+  --query 'Reservations[0].Instances[0].PublicIpAddress' \
   --output text)
 
-echo "Instance ready — open: http://$DNS"
+echo "Instance ready - open: http://$IP"

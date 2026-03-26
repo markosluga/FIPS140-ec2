@@ -81,11 +81,11 @@ aws ec2 wait instance-running `
   --profile <profile> `
   --instance-ids $InstanceId
 
-$Dns = aws ec2 describe-instances `
+$Ip = aws ec2 describe-instances `
   --region us-east-1 `
   --profile <profile> `
   --instance-ids $InstanceId `
-  --query "Reservations[0].Instances[0].PublicDnsName" `
+  --query "Reservations[0].Instances[0].PublicIpAddress" `
   --output text
 
-Write-Host "Instance ready — open: http://$Dns"
+Write-Host "Instance ready - open: http://$Ip"
