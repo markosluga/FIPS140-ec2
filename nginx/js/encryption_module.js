@@ -240,8 +240,8 @@ async function kmsRequest(target, bodyObj) {
 
     const canonicalRequest = ['POST', '/', '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
     const scope            = dateStamp + '/' + region + '/kms/aws4_request';
-    const stringToSign     = ['AWS4-HMAC-SHA256', amzDate, scope,
-                               await sha256Hex(canonicalRequest)].join('\n');
+    const canonicalHash    = await sha256Hex(canonicalRequest);
+    const stringToSign     = ['AWS4-HMAC-SHA256', amzDate, scope, canonicalHash].join('\n');
 
     // Derive signing key: HMAC(HMAC(HMAC(HMAC("AWS4"+secret, date), region), service), "aws4_request")
     const kDate    = await hmacSHA256(new TextEncoder().encode('AWS4' + secretKey), dateStamp);
@@ -289,9 +289,10 @@ async function envelopeEncrypt(plaintext) {
     // 2. AES-256-GCM encrypt locally
     const aesKey = await crypto.subtle.importKey('raw', dekBytes, 'AES-GCM', false, ['encrypt']);
     const iv     = crypto.getRandomValues(new Uint8Array(12));
-    const ct     = new Uint8Array(await crypto.subtle.encrypt(
+    const ctBuf  = await crypto.subtle.encrypt(
         { name: 'AES-GCM', iv }, aesKey, new TextEncoder().encode(plaintext)
-    ));
+    );
+    const ct     = new Uint8Array(ctBuf);
 
     // 3. Zero DEK (best-effort in JS)
     dekBytes.fill(0);
@@ -329,9 +330,10 @@ async function envelopeDecrypt(ciphertext) {
 
     // 2. AES-256-GCM decrypt locally
     const aesKey    = await crypto.subtle.importKey('raw', dekBytes, 'AES-GCM', false, ['decrypt']);
-    const plaintext = new TextDecoder().decode(
-        await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64decode(ivB64) }, aesKey, b64decode(ctB64))
+    const plainBuf  = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: b64decode(ivB64) }, aesKey, b64decode(ctB64)
     );
+    const plaintext = new TextDecoder().decode(plainBuf);
 
     // 3. Zero DEK
     dekBytes.fill(0);
