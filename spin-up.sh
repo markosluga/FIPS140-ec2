@@ -50,22 +50,23 @@ LAUNCHED=false
 
 for SUBNET_ID in "${SUBNETS[@]}"; do
   echo "Trying subnet $SUBNET_ID..."
-  OUTPUT=$(aws ec2 run-instances \
+  INSTANCE_ID=$(aws ec2 run-instances \
     --region us-east-1 \
     --profile <profile> \
     --launch-template "LaunchTemplateName=<launch-template-name>,Version=\$Latest" \
     --image-id "$AMI_ID" \
     --network-interfaces "DeviceIndex=0,SubnetId=$SUBNET_ID,AssociatePublicIpAddress=true,Groups=$SECURITY_GROUP" \
-    --output table 2>&1)
+    --query 'Instances[0].InstanceId' \
+    --output text 2>&1)
 
   if [ $? -eq 0 ]; then
-    echo "$OUTPUT"
+    echo "Launched instance: $INSTANCE_ID"
     LAUNCHED=true
     break
-  elif echo "$OUTPUT" | grep -q "InsufficientInstanceCapacity\|no Spot capacity"; then
+  elif echo "$INSTANCE_ID" | grep -q "InsufficientInstanceCapacity\|no Spot capacity"; then
     echo "No capacity in $SUBNET_ID, trying next..."
   else
-    echo "$OUTPUT" >&2
+    echo "$INSTANCE_ID" >&2
     exit 1
   fi
 done
@@ -74,3 +75,18 @@ if [ "$LAUNCHED" = false ]; then
   echo "No Spot capacity available in any subnet." >&2
   exit 1
 fi
+
+echo "Waiting for instance to enter running state..."
+aws ec2 wait instance-running \
+  --region us-east-1 \
+  --profile <profile> \
+  --instance-ids "$INSTANCE_ID"
+
+DNS=$(aws ec2 describe-instances \
+  --region us-east-1 \
+  --profile <profile> \
+  --instance-ids "$INSTANCE_ID" \
+  --query 'Reservations[0].Instances[0].PublicDnsName' \
+  --output text)
+
+echo "Instance ready — open: http://$DNS"

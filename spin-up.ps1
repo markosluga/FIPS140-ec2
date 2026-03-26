@@ -49,22 +49,23 @@ $Launched = $false
 
 foreach ($SubnetId in $Subnets) {
   Write-Host "Trying subnet $SubnetId..."
-  $Output = aws ec2 run-instances `
+  $InstanceId = aws ec2 run-instances `
     --region us-east-1 `
     --profile <profile> `
     --launch-template "LaunchTemplateName=<launch-template-name>,Version=`$Latest" `
     --image-id $AmiId `
     --network-interfaces "DeviceIndex=0,SubnetId=$SubnetId,AssociatePublicIpAddress=true,Groups=$SecurityGroup" `
-    --output table 2>&1
+    --query "Instances[0].InstanceId" `
+    --output text 2>&1
 
   if ($LASTEXITCODE -eq 0) {
-    Write-Host $Output
+    Write-Host "Launched instance: $InstanceId"
     $Launched = $true
     break
-  } elseif ($Output -match "InsufficientInstanceCapacity|no Spot capacity") {
+  } elseif ($InstanceId -match "InsufficientInstanceCapacity|no Spot capacity") {
     Write-Host "No capacity in $SubnetId, trying next..."
   } else {
-    Write-Error $Output
+    Write-Error $InstanceId
     exit 1
   }
 }
@@ -73,3 +74,18 @@ if (-not $Launched) {
   Write-Error "No Spot capacity available in any subnet."
   exit 1
 }
+
+Write-Host "Waiting for instance to enter running state..."
+aws ec2 wait instance-running `
+  --region us-east-1 `
+  --profile <profile> `
+  --instance-ids $InstanceId
+
+$Dns = aws ec2 describe-instances `
+  --region us-east-1 `
+  --profile <profile> `
+  --instance-ids $InstanceId `
+  --query "Reservations[0].Instances[0].PublicDnsName" `
+  --output text
+
+Write-Host "Instance ready — open: http://$Dns"
