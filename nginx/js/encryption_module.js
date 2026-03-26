@@ -193,7 +193,8 @@ function toHex(bytes) {
 
 async function sha256Hex(data) {
     const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-    return toHex(await crypto.subtle.digest('SHA-256', bytes));
+    const hash  = await crypto.subtle.digest('SHA-256', bytes);
+    return toHex(hash);
 }
 
 async function hmacSHA256(keyBytes, data) {
@@ -203,7 +204,8 @@ async function hmacSHA256(keyBytes, data) {
         false, ['sign']
     );
     const dataBytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-    return new Uint8Array(await crypto.subtle.sign('HMAC', key, dataBytes));
+    const sig = await crypto.subtle.sign('HMAC', key, dataBytes);
+    return new Uint8Array(sig);
 }
 
 // ---------------------------------------------------------------------------
@@ -248,7 +250,8 @@ async function kmsRequest(target, bodyObj) {
     const kRegion  = await hmacSHA256(kDate, region);
     const kService = await hmacSHA256(kRegion, 'kms');
     const kSigning = await hmacSHA256(kService, 'aws4_request');
-    const signature = toHex(await hmacSHA256(kSigning, stringToSign));
+    const sigBytes  = await hmacSHA256(kSigning, stringToSign);
+    const signature = toHex(sigBytes);
 
     hdrs['authorization'] = 'AWS4-HMAC-SHA256 Credential=' + accessKey + '/' + scope +
         ', SignedHeaders=' + signedHeaders + ', Signature=' + signature;
