@@ -324,7 +324,9 @@ async function envelopeDecrypt(ciphertext) {
         throw new Error('Malformed envelope: ' + e.message);
     }
 
-    const { edk, iv: ivB64, ct: ctB64 } = envelope;
+    const edk   = envelope.edk;
+    const ivB64 = envelope.iv;
+    const ctB64 = envelope.ct;
 
     // 1. Recover DEK via KMS Decrypt
     const kmsData  = await kmsRequest('TrentService.Decrypt', { CiphertextBlob: edk });
