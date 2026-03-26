@@ -429,7 +429,7 @@ async function proxyAndEncrypt(r) {
             kms_endpoint:     'https://kms.' + config.kms.region + '.amazonaws.com/',
             kms_region:       config.kms.region,
             kms_key_id:       (lastResult && lastResult.cmkId) || config.kms.key_id,
-            data_key_id:      lastResult ? 'AES-256-GCM · fp:' + lastResult.dekFp + ' (used once)' : 'AES-256-GCM (ephemeral)',
+            data_key_id:      lastResult ? 'AES-256-GCM · fp:' + lastResult.dekFp + '' : 'AES-256-GCM (ephemeral)',
         };
     }
 
@@ -551,7 +551,7 @@ async function decryptHandler(r) {
             kms_endpoint:    'https://kms.' + config.kms.region + '.amazonaws.com/',
             kms_region:      config.kms.region,
             kms_key_id:      lastCmkId || config.kms.key_id,
-            data_key_id:     lastDekFp ? 'AES-256-GCM · fp:' + lastDekFp + ' (used once)' : 'AES-256-GCM (ephemeral)',
+            data_key_id:     lastDekFp ? 'AES-256-GCM · fp:' + lastDekFp + '' : 'AES-256-GCM (ephemeral)',
             decrypt_time_ms: totalMs,
         },
     }));
